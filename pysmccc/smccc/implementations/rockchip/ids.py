@@ -60,8 +60,8 @@ WDT_CFG = 0x82000026
 HDMIRX_CFG = 0x82000027
 MCU_CFG = 0x82000028
 PVTPLL_CFG = 0x82000029
-
 DRAM_FREQ = 0x82000008
+
 CONFIG_DRAM_INIT = 0x00
 CONFIG_DRAM_SET_RATE = 0x01
 CONFIG_DRAM_ROUND_RATE = 0x02
@@ -92,3 +92,19 @@ class SharedPage(IntEnum):
     LASTLOG = 7
     HDCP = 8
     SLEEP = 9
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class SipReturn(IntEnum):
+    SUCCESS = 0
+    UNKNOWN = -1
+    NOT_SUPPORTED = -2
+    INVALID_PARAMS = -3
+    INVALID_ADDRESS = -4
+    RET_DENIED = -5
+    TIMEOUT = -6
+
+    def __str__(self):
+        return self.__repr__()

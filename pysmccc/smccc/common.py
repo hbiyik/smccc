@@ -15,13 +15,9 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
 import ctypes
 
-LOGLEVEL = logging.INFO
-# LOGLEVEL = logging.DEBUG
-logging.basicConfig(level=LOGLEVEL, format='%(message)s')
-logger = logging.getLogger("smccc")
+PROCPATH = "/proc/smccc"
 
 
 class Printable:

@@ -14,12 +14,12 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import array
+
 import os
 import mmap
 import binascii
 import ctypes
-from smccc import common
+from smccc import log
 
 
 class Io:
@@ -64,7 +64,7 @@ class Memory(Io):
         start = int(self.start / self.pagesize) * self.pagesize
         startoffset = self.start - start
         size = (int((self.size + startoffset) / self.pagesize) + 1) * self.pagesize
-        common.logger.debug("%s binding: [%d (%s), %d (%s)]", self.dev, start, hex(start), start + size, hex(start + size))
+        log.logger.debug("%s binding: [%d (%s), %d (%s)]", self.dev, start, hex(start), start + size, hex(start + size))
         # MAP physical memory
         if self.flag_r and self.flag_w:
             flags = os.O_RDWR | os.O_SYNC
@@ -84,21 +84,21 @@ class Memory(Io):
     def readio(self, start, size):
         self.mmap.seek(self.startoffset + start)
         val = self.mmap.read(size)
-        common.logger.debug("%s read start: %s, size: %d, val: 0x%s", self.dev, hex(self.start + self.startoffset + start), size, binascii.hexlify(val).decode())
+        log.logger.debug("%s read start: %s, size: %d, val: 0x%s", self.dev, hex(self.start + self.startoffset + start), size, binascii.hexlify(val).decode())
         return val
 
     def writeio(self, start, data):
-        common.logger.debug("%s write start: %s data: 0x%s", self.dev, hex(self.start + self.startoffset + start), binascii.hexlify(data).decode())
+        log.logger.debug("%s write start: %s data: 0x%s", self.dev, hex(self.start + self.startoffset + start), binascii.hexlify(data).decode())
         self.mmap.seek(self.startoffset + start)
         retval = self.mmap.write(data)
-        common.logger.debug("%s is written with %d length", self.dev, retval)
+        log.logger.debug("%s is written with length %d", self.dev, retval)
         return retval
 
     def close(self):
         if self.isinited:
-            common.logger.debug("%s unbinding: [%d (%s), %d (%s)]", self.dev,
-                                self.bindstart, hex(self.bindstart),
-                                self.bindsize, hex(self.bindsize))
+            log.logger.debug("%s unbinding: [%d (%s), %d (%s)]", self.dev,
+                             self.bindstart, hex(self.bindstart),
+                             self.bindsize, hex(self.bindsize))
             self.mmap.close()
             os.close(self.f)
 

@@ -19,11 +19,12 @@ import ctypes
 import array
 
 from smccc import ioctl
+from smccc import common
 
 
 class Smc:
     def __init__(self):
-        self.fd = open('/proc/smccc', "wb")
+        self.fd = open(common.PROCPATH, "wb")
 
     def close(self):
         self.fd.close()

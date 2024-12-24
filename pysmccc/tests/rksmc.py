@@ -16,14 +16,16 @@
 """
 
 from smccc.implementations.rockchip import sip
-from smccc.implementations.rockchip import ids
 from smccc.implementations.rockchip import dmc
 
 
 with sip.Sip() as rksip:
     print("atf version: ", rksip.atf_version())
     print("sip version: ", rksip.sip_version())
-    print("dram version: ", rksip.dram_version())
-    phy = rksip.request_shared_mem(2, ids.SharedPage.DDR)
-    print("dram config:", dmc.SharedDdr.from_addr(phy))
-    print("dram freq info:", rksip.dram_freq_info())
+
+with dmc.Dmc() as rkdmc:
+    print("dram version: ", rkdmc.dram_version())
+    print("dram config:", rkdmc.shared_mem())
+    print("dram freq info:", rkdmc.dram_freq_info())
+    print("dram set rate:", rkdmc.dram_set_rate())
+    print("dram mcu start:", rkdmc.dram_mcu_start())
