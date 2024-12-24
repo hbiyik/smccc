@@ -17,14 +17,6 @@ static long smccc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         arm_smccc_smc(data.req.id,
                       data.req.arg0, data.req.arg1, data.req.arg2,
                       0, 0, 0, 0, &data.res);
-        printk(KERN_INFO "%s: id, %ld\n", __func__, data.req.id);
-        printk(KERN_INFO "%s: arg0, %ld\n", __func__, data.req.arg0);
-        printk(KERN_INFO "%s: arg1, %ld\n", __func__, data.req.arg1);
-        printk(KERN_INFO "%s: arg2, %ld\n", __func__, data.req.arg2);
-        printk(KERN_INFO "%s: a0, %ld\n", __func__, data.res.a0);
-        printk(KERN_INFO "%s: a1, %ld\n", __func__, data.res.a1);
-        printk(KERN_INFO "%s: a2, %ld\n", __func__, data.res.a2);
-        printk(KERN_INFO "%s: a3, %ld\n", __func__, data.res.a3);
         if (copy_to_user((void __user *)arg, &data, sizeof(struct arm_smccc_ioctl)))
             return -EFAULT;
 
