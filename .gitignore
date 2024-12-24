@@ -1,0 +1,10 @@
+*.cmd
+*.ko
+*.mod.c
+*.mod.o
+*.mod
+*.o
+*.order
+*.symvers
+__pycache__
+.settings
