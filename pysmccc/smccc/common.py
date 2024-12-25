@@ -16,6 +16,7 @@
 """
 
 import ctypes
+from enum import IntEnum
 
 PROCPATH = "/proc/smccc"
 
@@ -31,4 +32,4 @@ class Printable:
                 if isinstance(val, ctypes.Array):
                     val = list(val)
                 attrs += [(k, val)]
-        return f"{self.__class__.__name__}: " + ", ".join([f"{k}={v}" for (k, v) in attrs])
+        return f"{self.__class__.__name__}: " + ", ".join([f"{k}={repr(v)}" for (k, v) in attrs])

@@ -41,10 +41,10 @@ class Sip(smc.Smc):
         return Response(smc.Smc.call(self, functionid, **kwargs))
 
     def atf_version(self):
-        return self.call(ids.ATF_VERSION)
+        return self.call(ids.SipCommand.ATF_VERSION)
 
     def sip_version(self):
-        return self.call(ids.SIP_VERSION)
+        return self.call(ids.SipCommand.SIP_VERSION)
 
     def request_shared_mem(self, count, memtype):
-        return self.call(ids.SHARE_MEM, arg0=count, arg1=memtype)
+        return self.call(ids.SipCommand.SHARE_MEM, arg0=count, arg1=memtype)

@@ -4,7 +4,7 @@ Created on Dec 24, 2024
 @author: boogie
 '''
 import ctypes
-import time
+from enum import IntEnum
 
 from smccc import common
 from smccc import log
@@ -13,6 +13,27 @@ from smccc.implementations.rockchip import ids
 from smccc.implementations.rockchip import sip
 
 MAX_FREQ_COUNT = 6
+
+
+class DramCommand(IntEnum):
+    INIT = 0x00
+    SET_RATE = 0x01
+    ROUND_RATE = 0x02
+    SET_AT_SR = 0x03
+    GET_BW = 0x04
+    GET_RATE = 0x05
+    CLR_IRQ = 0x06
+    SET_PARAM = 0x07
+    GET_VERSION = 0x08
+    POST_SET_RATE = 0x09
+    SET_MSCH_RL = 0x0a
+    DEBUG = 0x0b
+    MCU_START = 0x0c
+    ECC = 0x0d
+    GET_FREQ_INFO = 0x0e
+    ADDRMAP_GET = 0x10
+    GET_STALL_TIME = 0x11
+    ECC_POISON = 0x12
 
 
 class SharedDdr(mem.MmapStructure, common.Printable):
@@ -38,7 +59,7 @@ class SharedDdr(mem.MmapStructure, common.Printable):
 
 class Dmc(sip.Sip):
     def dram_version(self):
-        return self.call(ids.DRAM_CONFIG, arg2=ids.CONFIG_DRAM_GET_VERSION)
+        return self.call(ids.SipCommand.DRAM_CONFIG, arg2=DramCommand.GET_VERSION)
 
     def shared_mem(self):
         resp = self.request_shared_mem(2, ids.SharedPage.DDR)
@@ -49,19 +70,19 @@ class Dmc(sip.Sip):
         return info
 
     def dram_freq_info(self):
-        return self.call(ids.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=ids.CONFIG_DRAM_GET_FREQ_INFO)
+        return self.call(ids.SipCommand.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=DramCommand.GET_FREQ_INFO)
 
     def dram_set_rate(self):
-        resp = self.call(ids.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=ids.CONFIG_DRAM_SET_RATE)
+        resp = self.call(ids.SipCommand.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=DramCommand.SET_RATE)
         if resp.value in ids.SipReturn:
             resp.value = ids.SipReturn(resp.value)
         return resp
 
     def dram_mcu_start(self):
-        return self.call(ids.DRAM_CONFIG, arg2=ids.CONFIG_MCU_START)
+        return self.call(ids.SipCommand.DRAM_CONFIG, arg2=DramCommand.MCU_START)
 
     def dram_mcu_post_set_rate(self):
-        return self.call(ids.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=ids.CONFIG_DRAM_POST_SET_RATE)
+        return self.call(ids.SipCommand.DRAM_CONFIG, arg0=ids.SharedPage.DDR, arg2=DramCommand.POST_SET_RATE)
 
 
 class Dram:
