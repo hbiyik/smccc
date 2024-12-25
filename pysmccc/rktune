@@ -33,6 +33,7 @@ subparsers = parser.add_subparsers(help="command", dest="command", required=True
 parser_mem = subparsers.add_parser('mem', help="memory tuning")
 subparsers_mem = parser_mem.add_subparsers(help="sub command", dest="subcommand", required=True)
 parser_mem_setclock = subparsers_mem.add_parser('setclock', help="set current dram clock")
+parser_mem_getclocks = subparsers_mem.add_parser('getclocks', help="get trained clocks")
 parser_mem_setclock.add_argument("clock", type=int, help="clock frequency in Mhz")
 
 args = parser.parse_args()
@@ -60,3 +61,5 @@ if args.command == "mem":
             else:
                 log.logger.info(f"Can not set dram clock")
                 sys.exit(resp)
+        elif args.subcommand == "getclocks":
+            log.logger.info(" ".join([f"{x}Mhz" for x in dram.getclocks() if x]))

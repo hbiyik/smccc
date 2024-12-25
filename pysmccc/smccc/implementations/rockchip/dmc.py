@@ -75,6 +75,10 @@ class Dram:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dmc.close()
 
+    def getclocks(self):
+        self.dmc.dram_freq_info()
+        return list(self.info.freq_info_mhz)
+
     def setclock(self, mhz):
         self.dmc.dram_freq_info()
         self.info.hz = mhz * 1000000
