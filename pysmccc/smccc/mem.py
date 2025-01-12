@@ -19,7 +19,10 @@ import os
 import mmap
 import binascii
 import ctypes
+import functools
+import struct
 from smccc import log
+from smccc import common
 
 
 class Io:
@@ -30,6 +33,7 @@ class Io:
         self.pagesize = pagesize
         self.start = start
         self.size = size
+        self.length = size
         self.isinited = False
 
     def init(self):
@@ -78,13 +82,15 @@ class Memory(Io):
             flags |= mmap.PROT_WRITE
         self.mmap = mmap.mmap(self.f, size, mmap.MAP_SHARED, flags, offset=start)
         self.bindstart = start
-        self.bindsize = size
+        self.length = size
         super(Memory, self).init()
 
     def readio(self, start, size):
         self.mmap.seek(self.startoffset + start)
-        val = self.mmap.read(size)
-        log.logger.debug("%s read start: %s, size: %d, val: 0x%s", self.dev, hex(self.start + self.startoffset + start), size, binascii.hexlify(val).decode())
+        val = b""
+        for _ in range(size):
+            val += self.mmap.read(1)
+        log.logger.debug("%s read end: %s, size: %d, val: 0x%s", self.dev, hex(self.start + self.startoffset + start), size, binascii.hexlify(val).decode())
         return val
 
     def writeio(self, start, data):
@@ -98,7 +104,7 @@ class Memory(Io):
         if self.isinited:
             log.logger.debug("%s unbinding: [%d (%s), %d (%s)]", self.dev,
                              self.bindstart, hex(self.bindstart),
-                             self.bindsize, hex(self.bindsize))
+                             self.length, hex(self.length))
             self.mmap.close()
             os.close(self.f)
 
@@ -129,3 +135,58 @@ class MmapStructure(ctypes.Structure):
         attr = getattr(self.__class__, name)
         self._buffer[attr.offset: attr.offset + attr.size] = self._memory.read(attr.offset, attr.size)
         return ctypes.Structure.__getattr__(self, name)
+
+
+class SharedMem:
+    def __init__(self, start, size):
+        self._map = []
+        self._attrs = []
+        self._f = Memory(start, size)
+
+    def map(self, offset, size, *names, le=True, encoding=None, bitmasks=None):
+        for name in names:
+            if name in self._attrs:
+                raise AttributeError(f"{name} is already mapped")
+        encoding = "<" + encoding if le else ">" + encoding
+        self._map.append([offset, size, names, encoding, bitmasks])
+        for name in names:
+            setattr(self.__class__, name, property(functools.partial(self.__class__._getmap, attr=name),
+                                                   functools.partial(self.__class__._setmap, attr=name)))
+            self._attrs.append(name)
+
+    def _decodemap(self, attr, names, encoding, bitmasks, data):
+        attrs = struct.unpack(encoding, data)
+        index = names.index(attr)
+        if not bitmasks:
+            return attrs[index]
+        else:
+            offset, size = bitmasks[index]
+            return common.shiftmask(attrs[0], offset, size)
+
+    def _getmap(self, attr):
+        for offset, size, names, encoding, bitmasks in self._map:
+            if attr in names:
+                data = self._f.read(offset, size)
+                return self._decodemap(attr, names, encoding, bitmasks, data)
+        raise AttributeError(f"{attr} is not available")
+
+    def _setmap(self, value, attr):
+        for offset, size, names, encoding, bitmasks in self._map:
+            if attr in names:
+                values = []
+                data = self._f.read(offset, size)
+                for name in names:
+                    if name == attr:
+                        values.append(value)
+                    else:
+                        values.append(self._decodemap(name, names, encoding, bitmasks, data))
+                if not bitmasks:
+                    newdata = struct.pack(encoding, *values)
+                else:
+                    newvalue = 0
+                    for i, (bitoffset, size) in enumerate(bitmasks):
+                        newvalue |= common.maskshift(values[i], size, bitoffset)
+                    newdata = struct.pack(encoding, newvalue)
+                self._f.write(offset, newdata)
+                return
+        raise AttributeError(f"{attr} is not available")

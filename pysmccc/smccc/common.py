@@ -33,3 +33,16 @@ class Printable:
                     val = list(val)
                 attrs += [(k, val)]
         return f"{self.__class__.__name__}: " + ", ".join([f"{k}={repr(v)}" for (k, v) in attrs])
+
+
+def maskshift(val, mask, shift):
+    return (val & (2 ** mask - 1)) << shift
+
+
+def shiftmask(val, shift, mask):
+    return (val >> shift) & (2 ** mask - 1)
+
+
+class PrettyIntEnum(IntEnum):
+    def __str__(self):
+        return self.__repr__()
