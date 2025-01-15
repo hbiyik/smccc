@@ -33,8 +33,6 @@ struct proc_ops SMCCC_FOPS = {
 
 static void smccc_exit(void){
     remove_proc_entry(DEVICE_NAME, NULL);
-    // TODO: free
-    printk(KERN_INFO "%s: module unloaded\n", __func__);
 }
 
 static int smccc_init(void){
@@ -43,7 +41,6 @@ static int smccc_init(void){
         goto fail;
     }
 
-    printk(KERN_INFO "%s: module loaded\n", __func__);
     return 0;
 
 fail:

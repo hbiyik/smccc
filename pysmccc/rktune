@@ -20,10 +20,16 @@ import os
 import sys
 import logging
 
-from smccc import common
-from smccc import log
-from smccc.implementations.rockchip import dmc
+REMOTE_DBG = "192.168.2.10"
+REMOTE_DBG = None
 
+if REMOTE_DBG:
+    import pydevd  # @UnresolvedImport
+    pydevd.settrace(REMOTE_DBG, stdoutToServer=True, stderrToServer=True, suspend=False)
+
+
+from smccc import common
+from smccc.sip.rockchip import dmc
 
 parser = argparse.ArgumentParser(prog="rktune")
 parser.add_argument("--debug", "-d", action='store_true', help="enable debug logging")
@@ -32,34 +38,57 @@ subparsers = parser.add_subparsers(help="command", dest="command", required=True
 
 parser_mem = subparsers.add_parser('mem', help="memory tuning")
 subparsers_mem = parser_mem.add_subparsers(help="sub command", dest="subcommand", required=True)
-parser_mem_setclock = subparsers_mem.add_parser('setclock', help="set current dram clock")
+
 parser_mem_getclocks = subparsers_mem.add_parser('getclocks', help="get trained clocks")
-parser_mem_setclock.add_argument("clock", type=int, help="clock frequency in Mhz")
+
+parser_mem_setclock = subparsers_mem.add_parser('setclock', help="set current dram clock")
+parser_mem_setclock.add_argument("index", type=int, help="clock index as provided in getclocks")
+parser_mem_setclock.add_argument("clock", type=int, help="clock value in Mhz")
+
+parser_mem_setclock = subparsers_mem.add_parser('applyclock', help="set current dram clock")
+parser_mem_setclock.add_argument("index", type=int, help="clock index as provided in get/setclocks")
 
 args = parser.parse_args()
 
 if not os.path.exists(common.PROCPATH):
-    log.logger.error(f"{common.PROCPATH} device does not exists. Please load the kernel module with 'insmod smccc.ko'")
+    common.logger.error(f"{common.PROCPATH} device does not exists. Please load the kernel module with 'insmod smccc.ko'")
     sys.exit(-1)
 
 if not os.access(common.PROCPATH, os.R_OK):
-    log.logger.error(f"{common.PROCPATH} device is not readable. Run as root or give proper permissions to {common.PROCPATH}")
+    common.logger.error(f"{common.PROCPATH} device is not readable. Run as root or give proper permissions to {common.PROCPATH}")
     sys.exit(-2)
 
 if not os.access(common.PROCPATH, os.W_OK):
-    log.logger.error(f"{common.PROCPATH} device is not writable. Run as root or give proper permissions to {common.PROCPATH}")
+    common.logger.error(f"{common.PROCPATH} device is not writable. Run as root or give proper permissions to {common.PROCPATH}")
     sys.exit(-3)
 
+
+def check_dram_clock_index(dram, index):
+    clocks = dram.getclocks()
+    if index >= len(clocks) or index < 0:
+        common.logger.error(f"Clock index must be in between 0-{len(clocks) - 1}, {index} provided")
+        sys.exit(-1)
+    return clocks
+
+
 if args.debug:
-    log.setlevel(logging.DEBUG)
+    common.setloglevel(logging.DEBUG)
 if args.command == "mem":
     with dmc.Dram() as dram:
+        if args.subcommand == "getclocks":
+            for i, clock in enumerate(dram.getclocks()):
+                common.logger.info(f"{i}) {clock}Mhz")
+
         if args.subcommand == "setclock":
-            resp = dram.setclock(args.clock)
+            check_dram_clock_index(dram, args.index)
+            dram.setclock(args.index, args.clock)
+            common.logger.info(f"Dram clock {args.index} is set to {args.clock}Mhz")
+
+        if args.subcommand == "applyclock":
+            clocks = check_dram_clock_index(dram, args.index)
+            resp = dram.applyclock(args.index)
             if(not resp):
-                log.logger.info(f"Dram clock is set to {args.clock}Mhz")
+                common.logger.info(f"Dram clock is set to {clocks[args.index]}Mhz")
             else:
-                log.logger.info(f"Can not set dram clock")
+                common.logger.info(f"Can not set dram clock")
                 sys.exit(resp)
-        elif args.subcommand == "getclocks":
-            log.logger.info(" ".join([f"{x}Mhz" for x in dram.getclocks() if x]))

@@ -19,7 +19,7 @@ from smccc.implementations.rockchip import sip
 from smccc.implementations.rockchip import dmc
 
 
-with sip.Sip() as rksip:
+with sip.RkSip() as rksip:
     print("atf version: ", rksip.atf_version())
     print("sip version: ", rksip.sip_version())
 

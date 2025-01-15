@@ -17,34 +17,30 @@
 
 from smccc import smc
 from smccc import common
-from smccc import log
-from smccc.implementations.rockchip import ids
-import ctypes
+from smccc.sip.rockchip import model
 
 
-class Response(common.Printable):
+class RkResponse(common.Printable):
     def __init__(self, ret):
         self._ret = ret
-        self.status = ctypes.c_int64(ret.a0).value
-        if self.status in ids.SipReturn:
-            self.status = ids.SipReturn(self.status)
+        self.status = model.RkSipReturn(common.uint64_cast("q", ret.a0))
         self._a1 = ret.a1
         self._a2 = ret.a2
         self._a3 = ret.a3
-        self.value = ctypes.c_int32(ret.a1).value
-        log.logger.debug(self)
+        self.value = common.uint64_cast("q", self._a1)
+        common.logger.debug(self)
 
 
-class Sip(smc.Smc):
+class RkSip(smc.Smc):
     def call(self, functionid, **kwargs):
-        log.logger.debug(f"Request: {functionid} {kwargs}")
-        return Response(smc.Smc.call(self, functionid, **kwargs))
+        common.logger.debug(f"Request: {functionid} {kwargs}")
+        return RkResponse(smc.Smc.call(self, int(functionid.value), **kwargs))
 
     def atf_version(self):
-        return self.call(ids.SipCommand.ATF_VERSION)
+        return self.call(model.RkSipCommand.ATF_VERSION)
 
     def sip_version(self):
-        return self.call(ids.SipCommand.SIP_VERSION)
+        return self.call(model.RkSipCommand.SIP_VERSION)
 
     def request_shared_mem(self, count, memtype):
-        return self.call(ids.SipCommand.SHARE_MEM, arg0=count, arg1=memtype)
+        return self.call(model.RkSipCommand.SHARE_MEM, arg0=count, arg1=memtype)

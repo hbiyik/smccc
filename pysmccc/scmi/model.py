@@ -17,6 +17,7 @@
 import struct
 from smccc import mem
 from smccc import common
+from smccc import block
 
 
 class StatusException(Exception):
@@ -36,6 +37,19 @@ class StatusCode(common.PrettyIntEnum):
     HARDWARE_ERROR = -9
     PROTOCOL_ERROR = -10
     IN_USE = -11
+
+
+class Protocols(common.PrettyIntEnum):
+    BASE = 0x10
+    POWER_DOMAIN = 0x11
+    SYSTEM_POWER = 0x12
+    PERFORMANCE_DOMAIN = 0x13
+    CLOCK_MANAGEMENT = 0x14
+    SENSOR_MANAGEMENT = 0x15
+    RESET_DOMAIN = 0x16
+    VOLTAGE_DOMAIN = 0x17
+    POWER_CAP_MONITORING = 0x18
+    PINCONTROL = 0x19
 
 
 class SharedMem(mem.SharedMem):
@@ -73,18 +87,13 @@ class SharedMem(mem.SharedMem):
     @property
     def payload(self):
         count = max(int(self.length / 4) - 1, 0)
-        data = self._f.read(28, count * 4)
-        return struct.unpack("i" * count, data)
+        return block.MappedList(self._f, 28, "i" * count)
 
     @payload.setter
     def payload(self, values):
-        if not values:
-            return
-        if not isinstance(values, tuple) and not isinstance(values, list):
-            raise AttributeError("payload must be list or tuple")
-        self.length = (len(values) + 1) * 4
-        data = struct.pack("I" * len(values), *values)
-        self._f.write(28, data)
+        p = self.payload
+        for i, v in enumerate(values):
+            p[i] = v
 
 
 class Protocol:
@@ -92,7 +101,7 @@ class Protocol:
         self.transport = transport
 
     def call(self, functionid, *args):
-        response = self.transport.send(self.protocolid, functionid, *args)
+        response = self.transport.send(self.protocolid.value, functionid, *args)
         if response[0] < 0:
             raise StatusException(StatusCode(response[0]))
         return response

@@ -15,7 +15,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import time
-from scmi import defs
+from scmi import model
 from smccc import smc
 
 
@@ -23,7 +23,7 @@ class Smc:
     def __init__(self, functionid, addr, size, timeout=1):
         self.timeout = timeout
         self.functionid = functionid
-        self.memory = defs.SharedMem(addr, size)
+        self.memory = model.SharedMem(addr, size)
         self.smc = smc.Smc()
 
     def send(self, protocol, message, *args):
@@ -41,7 +41,7 @@ class Smc:
         # wait for channel to be free
         while False:
             if time.time() - startt >= self.timeout:
-                raise defs.StatusException(defs.StatusCode.PROTOCOL_ERROR)
+                raise model.StatusException(model.StatusCode.PROTOCOL_ERROR)
             if self.memory.chan_free:
                 break
         self.memory.chan_error = 0
@@ -52,13 +52,13 @@ class Smc:
         self.memory.payload = args
         res = self.smc.call(self.functionid)
         if not res.a0 == 0:
-            raise defs.StatusException(defs.StatusCode(defs.StatusCode.NOT_SUPPORTED))
+            raise model.StatusException(model.StatusCode(model.StatusCode.NOT_SUPPORTED))
         # poll result
         while True:
             if time.time() - startt >= self.timeout:
-                raise defs.StatusException(defs.StatusCode.PROTOCOL_ERROR)
+                raise model.StatusException(model.StatusCode.PROTOCOL_ERROR)
             if self.memory.chan_error:
-                raise defs.StatusException(defs.StatusCode.COMMS_ERROR)
+                raise model.StatusException(model.StatusCode.COMMS_ERROR)
             if self.memory.chan_free:
                 break
         payload = self.memory.payload

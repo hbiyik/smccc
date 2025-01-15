@@ -15,11 +15,11 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import struct
-from scmi import defs
+from scmi import model
 
 
-class Base(defs.Protocol):
-    protocolid = 0x10
+class Base(model.Protocol):
+    protocolid = model.Protocols.BASE
 
     def discover_vendor(self):
         response = self.call(0x3)
@@ -50,7 +50,7 @@ class Base(defs.Protocol):
         for index in range(int(num_protocols / 4) + 1):
             for protocol in struct.unpack("BBBB", struct.pack("I", response[index + 2])):
                 if not len(protocols) == num_protocols:
-                    protocols.append(protocol)
+                    protocols.append(model.Protocols(protocol))
         return protocols
 
     def discover_agent(self):

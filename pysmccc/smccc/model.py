@@ -14,7 +14,9 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+import struct
 from smccc import common
+from smccc import block
 
 
 class ServiceCall(common.PrettyIntEnum):
@@ -32,38 +34,33 @@ class ServiceCall(common.PrettyIntEnum):
     # 50 - 53: Trusted OS
 
 
-class FunctionID:
-    fast = 0
-    smc64 = 0
-    _service = 0
-    mustbezero = 0
-    nolivestate = 0
-    function = 0
-
+class FunctionId(block.MappedBlock, common.Printable):
     @property
     def service(self):
         return self._service
 
     @service.setter
     def service(self, value):
-        self._service = ServiceCall(value)
+        if not isinstance(value, ServiceCall):
+            value = ServiceCall(value)
+        self._service = value
 
-    def __init__(self, val=None):
-        if val is not None:
-            self.fast = common.shiftmask(val, 31, 1)
-            self.smc64 = common.shiftmask(val, 30, 1)
-            self.service = common.shiftmask(val, 24, 6)
-            self.mustbezero = common.shiftmask(val, 17, 7)
-            self.nolivestate = common.shiftmask(val, 16, 1)
-            self.function = common.shiftmask(val, 0, 16)
+    def __init__(self, fast=0, smc64=0, service=0, _reserved0=0, nolivestate=0, functionid=0):
+        block.MappedBlock.__init__(self, b"0000")
+        self.map(0, 4, "functionid", "nolivestate", "_reserved0", "_service", "smc64", "fast", encoding="I",
+                 bitmasks=[(0, 16),
+                           (16, 1),
+                           (17, 7),
+                           (24, 6),
+                           (30, 1),
+                           (31, 1)])
+        self.functionid = functionid
+        self.nolivestate = nolivestate
+        self._reserved0 = _reserved0
+        self._service = service
+        self.smc64 = smc64
+        self.fast = fast
 
     def __int__(self):
-        return common.maskshift(self.fast, 1, 31) | \
-            common.maskshift(self.smc64, 1, 30) | \
-            common.maskshift(self.service, 6, 24) | \
-            common.maskshift(self.mustbezero, 7, 17) | \
-            common.maskshift(self.nolivestate, 1, 16) | \
-            common.maskshift(self.function, 16, 0)
-
-    def __repr__(self):
-        return f"0x{int(self):08X}"
+        self._f.seek(0)
+        return struct.unpack("I", self._f.read(4))[0]

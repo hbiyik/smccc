@@ -43,10 +43,10 @@ class Smcccreq(ctypes.Structure, common.Printable):
 class Smcccres(ctypes.Structure, common.Printable):
     _pack_ = 1
     _fields_ = [
-        ("a0", ctypes.c_int64),
-        ("a1", ctypes.c_int64),
-        ("a2", ctypes.c_int64),
-        ("a3", ctypes.c_int64),
+        ("a0", ctypes.c_uint64),
+        ("a1", ctypes.c_uint64),
+        ("a2", ctypes.c_uint64),
+        ("a3", ctypes.c_uint64),
         ]
 
 
