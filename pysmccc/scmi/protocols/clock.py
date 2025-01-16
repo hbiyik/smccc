@@ -44,19 +44,38 @@ class ClockAttributes(block.MappedBlock, common.Printable):
                                          ])
 
 
-class RateFlags(block.MappedBlock, common.Printable):
+class AttrRateFlags(block.MappedBlock, common.Printable):
     numrates = 0
     return_triplet = 0
     remaining = 0
 
-    def __init__(self, block):
-        block.MappedBlock.__init__(self, block)
+    def __init__(self, buf):
+        block.MappedBlock.__init__(self, buf)
         self.map(0, 4, "numrates", "return_triplet", "_reserved0", "remaining",
                  encoding="I", bitmasks=[(0, 12),
                                          (12, 1),
                                          (13, 3),
                                          (16, 16)
                                          ])
+
+
+class SetRateFlags(block.MappedBlock, common.Printable):
+    asynch = 0
+    ignore_asynch = 0
+    roundup = 0
+
+    def __init__(self, buf):
+        block.MappedBlock.__init__(self, buf)
+        self.map(0, 4, "asynch", "ignore_asynch", "roundup", "_reserved0",
+                 encoding="I", bitmasks=[(0, 1),
+                                         (1, 1),
+                                         (2, 2),
+                                         (4, 28)
+                                         ])
+
+    def __int__(self):
+        self._f.seek(0)
+        return struct.unpack("I", self._f.read(4))[0]
 
 
 class Clock(model.Protocol):
@@ -68,18 +87,33 @@ class Clock(model.Protocol):
 
     def describe_rates(self, clockid, rateindex):
         response = self.call(0x4, clockid, rateindex)
-        flags = RateFlags(struct.pack("I", response[1]))
+        flags = AttrRateFlags(struct.pack("I", response[1]))
         clocks = []
         index = 0
-        while index < flags.numrates:
+        record = 0
+        while record < flags.numrates:
             if flags.return_triplet:
-                fmin = response[index + 2]
-                fmax = response[index + 3]
-                fstep = response[index + 4]
+                fmin = common.uint32_cast("Q", response[index + 2], response[index + 3])
+                fmax = common.uint32_cast("Q", response[index + 4], response[index + 5])
+                fstep = common.uint32_cast("Q", response[index + 6], response[index + 7])
                 subclocks = list(range(fmin, fmax + fstep, fstep))
                 clocks.extend(subclocks)
-                index += 3
+                index += 6
             else:
-                clocks.append(response[index + 3], response[index + 2])
+                clocks.append(common.uint32_cast("Q", response[index + 2], response[index + 3]))
                 index += 2
+            record += 1
         return clocks
+
+    def rateset(self, clockid, rate, asynch=0, ignore_asynch=0, roundmode=0):
+        flags = SetRateFlags(b"0000")
+        flags.asynch = asynch
+        flags.ignore_asynch = ignore_asynch
+        flags.roundup = roundmode
+        rate_high = common.shiftmask(rate, 32, 32)
+        rate_low = common.shiftmask(rate, 0, 32)
+        self.call(0x5, int(flags), clockid, rate_low, rate_high)
+
+    def rateget(self, clockid):
+        response = self.call(0x6, clockid)
+        return common.uint32_cast("Q", response[1], response[2])

@@ -14,14 +14,15 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import struct
 from smccc import mem
 from smccc import common
 from smccc import block
 
 
 class StatusException(Exception):
-    pass
+    def __init__(self, status):
+        Exception.__init__(self, status)
+        self.status = status.value
 
 
 class StatusCode(common.PrettyIntEnum):
@@ -91,6 +92,7 @@ class SharedMem(mem.SharedMem):
 
     @payload.setter
     def payload(self, values):
+        self.length = (len(values) + 1) * 4
         p = self.payload
         for i, v in enumerate(values):
             p[i] = v

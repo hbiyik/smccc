@@ -17,6 +17,7 @@
 import time
 from scmi import model
 from smccc import smc
+from smccc import common
 
 
 class Smc:
@@ -51,7 +52,8 @@ class Smc:
         self.memory.msgid = message
         self.memory.payload = args
         res = self.smc.call(self.functionid)
-        if not res.a0 == 0:
+        retval = common.uint64_cast("q", res.a0)
+        if not retval == 0:
             raise model.StatusException(model.StatusCode(model.StatusCode.NOT_SUPPORTED))
         # poll result
         while True:

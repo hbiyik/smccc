@@ -20,16 +20,44 @@ import os
 import sys
 import logging
 
+from smccc import common
+from smccc.sip.rockchip import dmc
+from smccc.sip.rockchip import model as rksipmodel
+
+from scmi.transports import smc
+from scmi.protocols import clock
+from scmi.protocols import base
+from scmi import model as scmimodel
+
+
+SCMI_CLOCKS = {"rk3528_cpu": 21,
+               "rk3528_gpu": 22,
+               "rk3588_cpul": 0,
+               "rk3588_cpub0": 2,
+               "rk3588_cpub1": 3,
+               "rk3588_gpu": 5,
+               "rk3588_npu": 6}
+
+
+def clock_type(s):
+    try:
+        return SCMI_CLOCKS[s.lower()]
+    except Exception:
+        try:
+            intval = int(s)
+            if intval < 0:
+                raise ValueError
+            return intval
+        except Exception:
+            raise argparse.ArgumentTypeError(f"{s} is not a valid clock id")
+
+
 REMOTE_DBG = "192.168.2.10"
 REMOTE_DBG = None
 
 if REMOTE_DBG:
     import pydevd  # @UnresolvedImport
     pydevd.settrace(REMOTE_DBG, stdoutToServer=True, stderrToServer=True, suspend=False)
-
-
-from smccc import common
-from smccc.sip.rockchip import dmc
 
 parser = argparse.ArgumentParser(prog="rktune")
 parser.add_argument("--debug", "-d", action='store_true', help="enable debug logging")
@@ -47,6 +75,28 @@ parser_mem_setclock.add_argument("clock", type=int, help="clock value in Mhz")
 
 parser_mem_setclock = subparsers_mem.add_parser('applyclock', help="set current dram clock")
 parser_mem_setclock.add_argument("index", type=int, help="clock index as provided in get/setclocks")
+
+
+parser_scmi = subparsers.add_parser('scmi', help="scmi interface")
+parser_scmi.add_argument("--agent", "-a", type=int, default=int(rksipmodel.RkSipCommand.SCMI_AGENT0), help="agent smc sip id")
+parser_scmi.add_argument("--sram", "-s", type=int, default=0x10f000, help="sram physcal address")
+parser_scmi.add_argument("--length", "-l", type=int, default=0x100, help="sram physcal address size in bytes")
+
+subparsers_scmi = parser_scmi.add_subparsers(help="protocol", dest="protocol", required=True)
+parser_scmi_clock = subparsers_scmi.add_parser('list', help="List available protocols")
+
+parser_scmi_clock = subparsers_scmi.add_parser('clock', help=str(scmimodel.Protocols.CLOCK_MANAGEMENT))
+subparsers_scmi_clock = parser_scmi_clock.add_subparsers(help="sub command", dest="subcommand", required=True)
+
+parser_scmi_clock_getrates = subparsers_scmi_clock.add_parser('getrates', help="get available clocks")
+parser_scmi_clock_getrates.add_argument("clock_id", type=clock_type, help="numeric clock id")
+
+parser_scmi_clock_getrate = subparsers_scmi_clock.add_parser('getrate', help="get clock")
+parser_scmi_clock_getrate.add_argument("clock_id", type=clock_type, help="numeric clock id")
+
+parser_scmi_clock_setrate = subparsers_scmi_clock.add_parser('setrate', help="set clock in Mhz")
+parser_scmi_clock_setrate.add_argument("clock_id", type=clock_type, help="numeric clock id")
+parser_scmi_clock_setrate.add_argument("freq", type=clock_type, help="frequency in Mhz")
 
 args = parser.parse_args()
 
@@ -92,3 +142,36 @@ if args.command == "mem":
             else:
                 common.logger.info(f"Can not set dram clock")
                 sys.exit(resp)
+
+if args.command == "scmi":
+    t = smc.Smc(args.agent, args.sram, args.length)
+    if args.protocol == "list":
+        p = base.Base(t)
+        for prot in p.discover_list_protocols(0):
+            common.logger.info(prot)
+    if args.protocol == "clock":
+        p = clock.Clock(t)
+        if args.subcommand == "getrates":
+            try:
+                rates = p.describe_rates(args.clock_id, 0)
+            except scmimodel.StatusException as e:
+                common.logger.error(e)
+                sys.exit(e.status)
+            for rate in rates:
+                common.logger.info(f"{rate / 1000000} MHz")
+
+        if args.subcommand == "getrate":
+            try:
+                rate = p.rateget(args.clock_id)
+            except scmimodel.StatusException as e:
+                common.logger.error(e)
+                sys.exit(e.status)
+            common.logger.info(f"{rate / 1000000} MHz")
+
+        if args.subcommand == "setrate":
+            try:
+                rate = p.rateset(args.clock_id, args.freq * 1000000)
+            except scmimodel.StatusException as e:
+                common.logger.error(e)
+                sys.exit(e.status)
+            common.logger.info(f"Frequency is sset to {args.freq} MHz")
